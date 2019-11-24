@@ -1,0 +1,140 @@
+#!node
+
+const util = require('util');
+const https = require('https');
+const querystring = require('querystring');                                                                                                                                                                                                
+const fs = require('fs');
+const path = require('path');
+const argv = require('yargs').argv;
+
+const { execSync } = require('child_process');
+
+var report = [];
+
+function packageToDir(package) {
+  // convert package name to directory
+  return "app/src/main/java/" + package.replace(/\./g, "/");
+}
+
+function mkdirp(dir) {
+  if (fs.existsSync(dir)) { return true }
+
+  const dirname = path.dirname(dir)
+
+  mkdirp(dirname);
+  fs.mkdirSync(dir);
+}
+
+function createDir(package) {
+  var dirName = packageToDir(package);
+
+  console.log("Creating dir (" + dirName + ")...");
+  mkdirp(dirName);
+
+  return dirName;
+}
+
+function copyAndFixFiles(package) {
+  var dirName = packageToDir(package);
+
+  console.log("Copying and patching template files...");
+  // Copy the source file
+  fs.readdir("files/", (err, files) => {
+    files.forEach(file => {
+      fs.readFile("files/" + file, 'utf8', function (err,data) {
+        if (err) {
+          return console.log(err);
+        }
+
+        var result = data.replace(/\$package_name\$/g, package);
+        var destFile = dirName + "/" + path.basename(file);
+       
+        fs.writeFile(destFile, result, 'utf8', function (err) {
+          if (err) return console.log(err);
+        });
+      });
+    });
+  });
+
+  // Patch the manifest files inplace
+  var files = [
+    "app/src/main/AndroidManifest.xml",
+    "app/build.gradle"
+  ];
+
+  files.forEach(file => {
+    // read the content
+    fs.readFile(file, 'utf8', (err, data) => {
+      if (err) {
+        return console.log(err);
+      }
+
+      // modify the content
+      var result = data.replace(/\$package_name\$/g, package);
+
+      // write it back
+      fs.writeFile(file, result, 'utf8', function (err) {
+        if (err) return console.log(err);
+      });
+    });
+  });
+}
+
+function copyStandardFiles(package) {
+  createDir(package);
+  copyAndFixFiles(package);  
+}
+
+function generateSlangInterface(api_key, buddy_id, package) {
+  var tmpFile = "/tmp/SlangInterface.java";
+  var cmd = "curl -o " + tmpFile + " -s -u " + api_key + ":TODO https://console.slanglabs.in/v1/applications/" + buddy_id + "/codegen/android?env=stage";
+
+  console.log("Generating SlangInterface.java...");
+  out = execSync(cmd);
+
+  fs.readFile(tmpFile, 'utf8', function (err, data) {
+    if (err) {
+      return console.log(err);
+    }
+
+    var dirName = packageToDir(package);
+    var outFile = dirName + "/SlangInterface.java";
+    var result = "import " + package + ";\n\n" + data;
+
+    fs.writeFile(outFile, result, 'utf8', function (err) {
+      if (err) return console.log(err);
+    });
+  });
+}
+
+function usage() {
+  console.log("This will generate an sample app with Slang integrated for the given schema");
+  console.log("Usage: " + path.basename(process.argv[1]) + " --api-key <api key> --buddy-id <buddy id> [--package <package name>]");
+  console.log("--api-key  - The key specific to your account. Login to https://console.slanglabs.in and check your account page to get this");
+  console.log("--buddy-id - The id for the buddy you want to test");
+  console.log("--package  - The optional package name you want to use for the generated files");
+}
+
+var api_key = null, buddy_id = null, package = "in.slangsampleapp";
+
+if (argv["api-key"]) {
+  api_key = argv["api-key"];
+} 
+
+if (argv["buddy-id"]) {
+  buddy_id = argv["buddy-id"];
+}
+
+if (argv.package) {
+  package = argv.package;
+}
+
+if (!api_key || !buddy_id || !package) {
+  usage();
+} else {
+  console.log("Starting Slang setup...\n");
+  copyStandardFiles(package);
+  generateSlangInterface(api_key, buddy_id, package);
+  console.log("\nSlang setup completed. Build and run the app to test Slang");
+}
+
