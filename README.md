@@ -9,9 +9,12 @@ To use this,
 - You can either create a new buddy there or you can use the sample demo buddy
 - You need to publish the buddy to stage before you can continue
 
-Run this script to generate the starter code 
+Run the setup script to generate the starter code and configure this sample app for the
+given buddy
 
-$ ./slang_setup --api-key <api_key> --buddy-id <buddy_id> [--package <package name>]
+$ node slang_setup --api-key <api_key> --buddy-id <buddy_id> [--package <package name>]
+
+(Note: This is a node js script)
 
 This will generate a bunch of files into this empty android app. 
 
