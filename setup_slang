@@ -99,7 +99,7 @@ function generateSlangInterface(api_key, buddy_id, package) {
 
     var dirName = packageToDir(package);
     var outFile = dirName + "/SlangInterface.java";
-    var result = "import " + package + ";\n\n" + data;
+    var result = "package " + package + ";\n\n" + data;
 
     fs.writeFile(outFile, result, 'utf8', function (err) {
       if (err) return console.log(err);

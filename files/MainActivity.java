@@ -5,6 +5,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 
 import in.slanglabs.platform.SlangBuddy;
+import $package_name$.R;
 
 /**
  * An example activity that shows the Slang trigger
