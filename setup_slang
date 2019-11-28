@@ -34,7 +34,26 @@ function createDir(package) {
   return dirName;
 }
 
-function copyAndFixFiles(package) {
+function fixFiles(files, pattern, replacement) {
+  files.forEach(file => {
+    // read the content
+    fs.readFile(file, 'utf8', (err, data) => {
+      if (err) {
+        return console.log(err);
+      }
+
+      // modify the content
+      var result = data.replace(pattern, replacement);
+
+      // write it back
+      fs.writeFile(file, result, 'utf8', function (err) {
+        if (err) return console.log(err);
+      });
+    });
+  });
+}
+
+function copyAndFixFiles(package, appName) {
   var dirName = packageToDir(package);
 
   console.log("Copying and patching template files...");
@@ -56,33 +75,27 @@ function copyAndFixFiles(package) {
     });
   });
 
-  // Patch the manifest files inplace
+  // In-place file replacements
+
+  // Package name replacements
   var files = [
     "app/src/main/AndroidManifest.xml",
     "app/build.gradle"
   ];
 
-  files.forEach(file => {
-    // read the content
-    fs.readFile(file, 'utf8', (err, data) => {
-      if (err) {
-        return console.log(err);
-      }
+  fixFiles(files, /\$package_name\$/g, package);
 
-      // modify the content
-      var result = data.replace(/\$package_name\$/g, package);
+  // App name replacements
+  files = [
+    "app/src/main/res/values/strings.xml",
+  ];
 
-      // write it back
-      fs.writeFile(file, result, 'utf8', function (err) {
-        if (err) return console.log(err);
-      });
-    });
-  });
+  fixFiles(files, /\$app_name\$/g, appName);
 }
 
-function copyStandardFiles(package) {
+function copyStandardFiles(package, appName) {
   createDir(package);
-  copyAndFixFiles(package);  
+  copyAndFixFiles(package, appName);  
 }
 
 function generateSlangInterface(api_key, buddy_id, package) {
@@ -109,13 +122,14 @@ function generateSlangInterface(api_key, buddy_id, package) {
 
 function usage() {
   console.log("This will generate an sample app with Slang integrated for the given schema");
-  console.log("Usage: " + path.basename(process.argv[1]) + " --api-key <api key> --buddy-id <buddy id> [--package <package name>]");
+  console.log("Usage: " + path.basename(process.argv[1]) + " --api-key <api key> --buddy-id <buddy id> [--package <package name> --app-name <appname>]");
   console.log("--api-key  - The key specific to your account. Login to https://console.slanglabs.in and check your account page to get this");
   console.log("--buddy-id - The id for the buddy you want to test");
   console.log("--package  - The optional package name you want to use for the generated files");
+  console.log("--app-name  - The optional app name you want to use for the generated app");
 }
 
-var api_key = null, buddy_id = null, package = "in.slangsampleapp";
+var api_key = null, buddy_id = null, package = "in.slangsampleapp", appName = "slang_sample";
 
 if (argv["api-key"]) {
   api_key = argv["api-key"];
@@ -129,11 +143,15 @@ if (argv.package) {
   package = argv.package;
 }
 
-if (!api_key || !buddy_id || !package) {
+if (argv["app-name"]) {
+  appName = argv["app-name"];
+}
+
+if (!api_key || !buddy_id || !package || !appName) {
   usage();
 } else {
   console.log("Starting Slang setup...\n");
-  copyStandardFiles(package);
+  copyStandardFiles(package, appName);
   generateSlangInterface(api_key, buddy_id, package);
   console.log("\nSlang setup completed. Build and run the app to test Slang");
 }
